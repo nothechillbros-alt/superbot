@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY; // Desde entorno de Render
+const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
 
 async function sendTelegram(chatId, text) {
   try {
@@ -34,22 +34,24 @@ async function askClaude(memory, userText) {
     const response = await axios.post(
       "https://api.anthropic.com/v1/complete",
       {
-        model: "claude-sonnet-4.6", // Tu modelo exacto
+        model: "claude-sonnet-4.6",
         prompt: fullPrompt,
         max_tokens_to_sample: 1000,
-        stop_sequences: ["\n\nHuman:"],
+        stop_sequences: ["\n\nHuman:"]
       },
       {
         headers: {
           "x-api-key": CLAUDE_API_KEY,
-          "Content-Type": "application/json",
-        },
+          "Content-Type": "application/json"
+        }
       }
     );
 
-    console.log("📦 Respuesta de Claude 4.6:", response.data);
+    console.log("📦 Respuesta completa de Claude:", response.data);
 
-    return response.data.completion || "Claude no respondió correctamente";
+    // Cambio clave para 4.6
+    const reply = response.data?.completion?.text || "Claude no respondió correctamente";
+    return reply;
   } catch (err) {
     console.error("❌ Error llamando a Claude 4.6:", err.message);
     return "Error: no pude conectarme con Claude";
