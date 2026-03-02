@@ -10,26 +10,23 @@ app.use(express.json());
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
 
-// Enviar mensaje a Telegram
 async function sendTelegram(chatId, text) {
   try {
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       chat_id: chatId,
-      text,
+      text: text.substring(0, 4000)
     });
-    console.log("✅ Enviado a Telegram");
+    console.log("✅ Telegram enviado");
   } catch (err) {
-    console.error("❌ Error Telegram:", err.response?.data || err.message);
+    console.error("❌ Telegram error:", err.response?.data || err.message);
   }
 }
 
-// Llamada correcta a Claude 4.x
 async function askClaude(memory, userText) {
   try {
 
     const messages = [];
 
-    // Convertimos memoria a formato nuevo
     if (memory && memory.length > 0) {
       memory.forEach(m => {
         messages.push({ role: "user", content: m.message });
@@ -37,13 +34,12 @@ async function askClaude(memory, userText) {
       });
     }
 
-    // Nuevo mensaje
     messages.push({ role: "user", content: userText });
 
     const response = await axios.post(
       "https://api.anthropic.com/v1/messages",
       {
-        model: "claude-3-5-sonnet-20241022", 
+        model: "claude-sonnet-4-6",
         max_tokens: 1000,
         messages: messages
       },
@@ -56,43 +52,36 @@ async function askClaude(memory, userText) {
       }
     );
 
-    console.log("📦 Claude raw:", JSON.stringify(response.data, null, 2));
+    console.log("📦 Claude respuesta:", JSON.stringify(response.data, null, 2));
 
     return response.data.content[0].text;
 
   } catch (err) {
-    console.error("❌ Error Claude:", err.response?.data || err.message);
+    console.error("❌ Claude error:", err.response?.data || err.message);
     return "Error conectando con Claude";
   }
 }
 
-// Webhook
 app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
-  try {
 
-    console.log("📩 Update recibido:", JSON.stringify(req.body, null, 2));
+  console.log("📩 Update:", JSON.stringify(req.body, null, 2));
 
-    const message = req.body.message;
-    if (!message || !message.text) return res.sendStatus(200);
+  const message = req.body.message;
+  if (!message || !message.text) return res.sendStatus(200);
 
-    const chatId = message.chat.id;
-    const text = message.text;
+  const chatId = message.chat.id;
+  const text = message.text;
 
-    const memory = await getMemory(chatId);
+  const memory = await getMemory(chatId);
 
-    const reply = await askClaude(memory, text);
+  const reply = await askClaude(memory, text);
 
-    await saveMemory(chatId, text, reply);
+  await saveMemory(chatId, text, reply);
 
-    await sendTelegram(chatId, reply);
+  await sendTelegram(chatId, reply);
 
-    res.sendStatus(200);
-
-  } catch (err) {
-    console.error("❌ Webhook error:", err);
-    res.sendStatus(500);
-  }
+  res.sendStatus(200);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🚀 Bot activo"));
+app.listen(PORT, () => console.log("🚀 Conchipro_bot activo"));
