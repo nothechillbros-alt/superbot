@@ -55,7 +55,7 @@ async function askClaude(memory, prompt) {
   }
 }
 
-app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
+app.post(`/webhook/${8636938305:AAE83gyAgN2n8ncoyJSJINN-nUk-T8EPG2A}`, async (req, res) => {
   try {
     const message = req.body.message;
     if (!message || !message.text) return res.sendStatus(200);
