@@ -18,25 +18,25 @@ async function sendTelegram(chatId, text) {
     });
     console.log("✅ Mensaje enviado a Telegram:", text);
   } catch (err) {
-    console.error("❌ Error enviando a Telegram:", err.message);
+    console.error("❌ Error enviando mensaje a Telegram:", err.message);
   }
 }
 
-// Función para llamar a Claude 4.6
 async function askClaude(memory, prompt) {
   try {
-    const messages = [
-      ...memory.map((m) => ({ role: "user", content: `${m.message} → ${m.response}` })),
-      { role: "user", content: prompt },
-    ];
+    const messagesText = memory
+      .map(m => `Human: ${m.message}\nAssistant: ${m.response}`)
+      .join("\n");
+
+    const fullPrompt = messagesText + `\nHuman: ${prompt}\nAssistant:`;
 
     const response = await axios.post(
       "https://api.anthropic.com/v1/complete",
       {
-        model: "claude-4.6",  // Aquí tu modelo Sonnet 4.6
+        model: "claude-4.6",
+        prompt: fullPrompt,
         max_tokens_to_sample: 1000,
         stop_sequences: ["\n\nHuman:"],
-        prompt: messages.map(m => `Human: ${m.content}\nAssistant:`).join("\n"),
       },
       {
         headers: {
@@ -46,10 +46,9 @@ async function askClaude(memory, prompt) {
       }
     );
 
-    console.log("📦 Respuesta completa de Claude:", response.data);
+    console.log("📦 Respuesta de Claude 4.6:", response.data);
 
-    const reply = response.data.completion || "Claude no respondió correctamente";
-    return reply;
+    return response.data.completion || "Claude no respondió correctamente";
   } catch (err) {
     console.error("❌ Error llamando a Claude 4.6:", err.message);
     return "Error: no pude conectarme con Claude";
