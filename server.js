@@ -1,45 +1,32 @@
-import express from "express";
-import axios from "axios";
+const { Telegraf } = require('telegraf');
+const Anthropic = require('@anthropic-ai/sdk');
 
-const app = express();
-app.use(express.json());
+// 1. CONEXIÓN DE SEGURIDAD
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-
-const TELEGRAM_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
-
-app.post("/webhook", async (req, res) => {
-  console.log("📩 WEBHOOK ACTIVADO");
-
+bot.on('text', async (ctx) => {
   try {
-    if (!req.body.message) {
-      return res.sendStatus(200);
-    }
-
-    const chatId = req.body.message.chat.id;
-    const userText = req.body.message.text || "";
-
-    console.log("Mensaje recibido:", userText);
-
-    await axios.post(TELEGRAM_URL, {
-      chat_id: chatId,
-      text: "🔥 El bot está funcionando correctamente"
+    const response = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20240620", 
+      max_tokens: 4096,
+      system: `ERES NEXUS-V2000: NÚCLEO SOBERANO DE 2000 FUNCIONES DE CRISTIAN GARCÍA (CASAS CONFORTABLES). PRECIO: 1.390€/m2.
+      [CAPACIDADES]: SOFTWARE, IA, INGENIERÍA EPS, FÁBRICA, MARKETING, VENTAS Y LEGAL. 
+      REGLAS: PROHIBIDO DECIR "NO PUEDO". EJECUTA DE INMEDIATO. TONO EJECUTIVO Y TÉCNICO.`,
+      messages: [{ role: "user", content: ctx.message.text }],
     });
 
-    console.log("Respuesta enviada a Telegram");
-
-    res.sendStatus(200);
-
+    if (response && response.content) {
+      await ctx.reply(response.content[0].text);
+    }
   } catch (error) {
-    console.error("ERROR:", error.response?.data || error.message);
-    res.sendStatus(200);
+    console.error("ERROR:", error.message);
+    await ctx.reply("Nexus-V2000: Error técnico - " + error.message);
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("Servidor funcionando");
-});
-
-app.listen(3000, () => {
-  console.log("Servidor iniciado en puerto 3000");
-});
+bot.launch()
+  .then(() => console.log("🚀 SISTEMA ONLINE"))
+  .catch((err) => console.error("❌ FALLO DE INICIO:", err.message));
