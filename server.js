@@ -12,52 +12,70 @@ const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
 
 // Función para enviar mensajes a Telegram
 async function sendTelegram(chatId, text) {
-  await axios.post(
-    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
-    { chat_id: chatId, text }
-  );
+  try {
+    await axios.post(
+      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
+      { chat_id: chatId, text }
+    );
+    console.log("✅ Mensaje enviado a Telegram:", text);
+  } catch (err) {
+    console.error("❌ Error enviando a Telegram:", err.message);
+  }
 }
 
 // Webhook Telegram
 app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
-  const message = req.body.message;
-  if (!message || !message.text) return res.sendStatus(200);
+  try {
+    const message = req.body.message;
+    if (!message || !message.text) return res.sendStatus(200);
 
-  const chatId = message.chat.id.toString();
-  const text = message.text;
+    const chatId = message.chat.id.toString();
+    const text = message.text;
 
-  const memory = await getMemory(chatId);
+    console.log("📩 Mensaje recibido de Telegram:", text);
 
-  // Llamada a Claude
-  const response = await axios.post(
-    "https://api.anthropic.com/v1/messages",
-    {
-      model: "claude-3-sonnet-20240229",
-      max_tokens: 800,
-      messages: [
-        ...memory.map(m => ({ role: "user", content: `${m.message} → ${m.response}` })),
-        { role: "user", content: text }
-      ]
-    },
-    {
-      headers: {
-        "x-api-key": CLAUDE_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json"
+    // Obtener memoria
+    const memory = await getMemory(chatId);
+
+    console.log("🧠 Memoria obtenida:", memory.length, "mensajes");
+
+    // Llamada a Claude
+    const response = await axios.post(
+      "https://api.anthropic.com/v1/messages",
+      {
+        model: "claude-3-sonnet-20240229",
+        max_tokens: 800,
+        messages: [
+          ...memory.map(m => ({ role: "user", content: `${m.message} → ${m.response}` })),
+          { role: "user", content: text }
+        ]
+      },
+      {
+        headers: {
+          "x-api-key": CLAUDE_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json"
+        }
       }
-    }
-  );
+    );
 
-  const reply = response.data.content[0].text;
+    const reply = response.data?.content?.[0]?.text || response.data?.completion || "Claude no respondió";
 
-  // Guardar en Supabase
-  await saveMemory(chatId, text, reply);
+    console.log("💬 Respuesta de Claude:", reply);
 
-  await sendTelegram(chatId, reply);
+    // Guardar en Supabase
+    await saveMemory(chatId, text, reply);
 
-  res.sendStatus(200);
+    // Enviar respuesta a Telegram
+    await sendTelegram(chatId, reply);
+
+    res.sendStatus(200);
+
+  } catch (error) {
+    console.error("❌ Error en webhook:", error.message);
+    res.sendStatus(500);
+  }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("SuperBot activo");
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 SuperBot activo en puerto ${PORT}`));
