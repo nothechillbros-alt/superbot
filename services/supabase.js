@@ -8,18 +8,27 @@ export const supabase = createClient(
 );
 
 export async function saveMemory(userId, message, response) {
-  await supabase.from("ai_memory").insert([
-    { user_id: userId, message, response }
-  ]);
+  try {
+    await supabase.from("ai_memory").insert([
+      { user_id: userId, message, response }
+    ]);
+  } catch (err) {
+    console.error("❌ Error guardando memoria:", err.message);
+  }
 }
 
 export async function getMemory(userId) {
-  const { data } = await supabase
-    .from("ai_memory")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .limit(10);
+  try {
+    const { data } = await supabase
+      .from("ai_memory")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(10);
 
-  return data || [];
+    return data || [];
+  } catch (err) {
+    console.error("❌ Error leyendo memoria:", err.message);
+    return [];
+  }
 }
