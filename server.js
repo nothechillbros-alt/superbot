@@ -5,71 +5,28 @@ const app = express();
 app.use(express.json());
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const TELEGRAM_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
 
-// 🧠 Memoria en RAM
-const userMemory = {};
-
 app.post("/webhook", async (req, res) => {
+  console.log("📩 WEBHOOK ACTIVADO");
+
   try {
-    const message = req.body.message;
-    if (!message || !message.text) {
+    if (!req.body.message) {
       return res.sendStatus(200);
     }
 
-    const chatId = message.chat.id;
-    const userText = message.text;
+    const chatId = req.body.message.chat.id;
+    const userText = req.body.message.text || "";
 
-    // Inicializar memoria si no existe
-    if (!userMemory[chatId]) {
-      userMemory[chatId] = [];
-    }
-
-    // Guardamos mensaje usuario
-    userMemory[chatId].push({
-      role: "user",
-      content: userText
-    });
-
-    // Limitamos memoria a últimos 10 mensajes
-    if (userMemory[chatId].length > 10) {
-      userMemory[chatId].shift();
-    }
-
-    console.log("Enviando a Claude...");
-
-    const response = await axios.post(
-      "https://api.anthropic.com/v1/messages",
-      {
-        model: "claude-3-sonnet-20240229",
-        max_tokens: 500,
-        messages: userMemory[chatId]
-      },
-      {
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json"
-        }
-      }
-    );
-
-    const reply = response.data.content[0].text;
-
-    // Guardamos respuesta IA
-    userMemory[chatId].push({
-      role: "assistant",
-      content: reply
-    });
-
-    console.log("Respuesta enviada a Telegram");
+    console.log("Mensaje recibido:", userText);
 
     await axios.post(TELEGRAM_URL, {
       chat_id: chatId,
-      text: reply
+      text: "🔥 El bot está funcionando correctamente"
     });
+
+    console.log("Respuesta enviada a Telegram");
 
     res.sendStatus(200);
 
@@ -79,6 +36,10 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
+app.get("/", (req, res) => {
+  res.send("Servidor funcionando");
+});
+
 app.listen(3000, () => {
-  console.log("Servidor funcionando en puerto 3000");
+  console.log("Servidor iniciado en puerto 3000");
 });
