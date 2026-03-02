@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
+const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY; // Desde entorno de Render
 
 async function sendTelegram(chatId, text) {
   try {
@@ -24,7 +24,6 @@ async function sendTelegram(chatId, text) {
 
 async function askClaude(memory, userText) {
   try {
-    // Construir prompt concatenando la memoria del usuario
     let memoryText = "";
     if (memory && memory.length > 0) {
       memoryText = memory.map(m => `Human: ${m.message}\nAssistant: ${m.response}`).join("\n") + "\n";
@@ -35,7 +34,7 @@ async function askClaude(memory, userText) {
     const response = await axios.post(
       "https://api.anthropic.com/v1/complete",
       {
-        model: "claude-4.6",
+        model: "claude-sonnet-4.6", // Tu modelo exacto
         prompt: fullPrompt,
         max_tokens_to_sample: 1000,
         stop_sequences: ["\n\nHuman:"],
@@ -57,7 +56,6 @@ async function askClaude(memory, userText) {
   }
 }
 
-// Webhook de Telegram
 app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
   try {
     const message = req.body.message || req.body.edited_message;
