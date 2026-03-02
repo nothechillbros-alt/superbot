@@ -22,13 +22,15 @@ async function sendTelegram(chatId, text) {
   }
 }
 
-async function askClaude(memory, prompt) {
+async function askClaude(memory, userText) {
   try {
-    const messagesText = memory
-      .map(m => `Human: ${m.message}\nAssistant: ${m.response}`)
-      .join("\n");
+    // Construir prompt concatenando la memoria del usuario
+    let memoryText = "";
+    if (memory && memory.length > 0) {
+      memoryText = memory.map(m => `Human: ${m.message}\nAssistant: ${m.response}`).join("\n") + "\n";
+    }
 
-    const fullPrompt = messagesText + `\nHuman: ${prompt}\nAssistant:`;
+    const fullPrompt = `${memoryText}Human: ${userText}\nAssistant:`;
 
     const response = await axios.post(
       "https://api.anthropic.com/v1/complete",
@@ -55,9 +57,10 @@ async function askClaude(memory, prompt) {
   }
 }
 
-app.post(`/webhook/${8636938305:AAE83gyAgN2n8ncoyJSJINN-nUk-T8EPG2A}`, async (req, res) => {
+// Webhook de Telegram
+app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
   try {
-    const message = req.body.message;
+    const message = req.body.message || req.body.edited_message;
     if (!message || !message.text) return res.sendStatus(200);
 
     const chatId = message.chat.id.toString();
