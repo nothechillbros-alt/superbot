@@ -10,7 +10,6 @@ app.use(express.json());
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
 
-// Función para enviar mensaje a Telegram
 async function sendTelegram(chatId, text) {
   try {
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
@@ -19,11 +18,11 @@ async function sendTelegram(chatId, text) {
     });
     console.log("✅ Mensaje enviado a Telegram:", text);
   } catch (err) {
-    console.error("❌ Error enviando mensaje a Telegram:", err.message);
+    console.error("❌ Error enviando a Telegram:", err.message);
   }
 }
 
-// Función para llamar a Claude (Clawd Bot)
+// Función para llamar a Claude 4.6
 async function askClaude(memory, prompt) {
   try {
     const messages = [
@@ -32,31 +31,31 @@ async function askClaude(memory, prompt) {
     ];
 
     const response = await axios.post(
-      "https://api.anthropic.com/v1/messages",
+      "https://api.anthropic.com/v1/complete",
       {
-        model: "claude-3.3-mini",
-        messages,
-        max_tokens_to_sample: 800,
+        model: "claude-4.6",  // Aquí tu modelo Sonnet 4.6
+        max_tokens_to_sample: 1000,
+        stop_sequences: ["\n\nHuman:"],
+        prompt: messages.map(m => `Human: ${m.content}\nAssistant:`).join("\n"),
       },
       {
         headers: {
           "x-api-key": CLAUDE_API_KEY,
-          "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
       }
     );
 
-    // Manejo seguro de la respuesta de Claude
-    const reply = response.data?.completion || "Claude no respondió correctamente";
+    console.log("📦 Respuesta completa de Claude:", response.data);
+
+    const reply = response.data.completion || "Claude no respondió correctamente";
     return reply;
   } catch (err) {
-    console.error("❌ Error llamando a Claude:", err.message);
+    console.error("❌ Error llamando a Claude 4.6:", err.message);
     return "Error: no pude conectarme con Claude";
   }
 }
 
-// Webhook de Telegram
 app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
   try {
     const message = req.body.message;
@@ -67,18 +66,13 @@ app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
 
     console.log("📩 Mensaje recibido:", text);
 
-    // Traer la memoria del usuario
     const memory = await getMemory(chatId);
     console.log("🧠 Memoria obtenida:", memory.length, "mensajes");
 
-    // Llamar a Claude
     const reply = await askClaude(memory, text);
     console.log("💬 Respuesta de Claude:", reply);
 
-    // Guardar en Supabase
     await saveMemory(chatId, text, reply);
-
-    // Enviar respuesta a Telegram
     await sendTelegram(chatId, reply);
 
     res.sendStatus(200);
